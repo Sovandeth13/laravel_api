@@ -1,68 +1,51 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    // Register a new user
     public function register(Request $request)
     {
-        $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|email|unique:users',
-            'password' => 'required|string|min:6|confirmed' // make sure you send password_confirmation
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|unique:users',
+            'password' => 'required|string|min:6|confirmed',
         ]);
-
         $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password)
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => bcrypt($validated['password']),
+            'is_admin' => false,
         ]);
-
-        $token = $user->createToken('api_token')->plainTextToken;
-
+        // Create Sanctum token and return it with user
+        $token = $user->createToken('authToken')->plainTextToken;
         return response()->json([
-            'user'  => $user,
-            'token' => $token
-        ], 201);
+            'message' => 'User registered successfully',
+            'user' => $user,
+            'access_token' => $token
+        ]);
     }
 
-    // Login existing user
     public function login(Request $request)
     {
-        $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required'
-        ]);
-
-        $user = User::where('email', $request->email)->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.']
-            ]);
+        $credentials = $request->only('email', 'password');
+        if (!Auth::attempt($credentials)) {
+            return response()->json(['message' => 'Unauthorized'], 401);
         }
-
-        $token = $user->createToken('api_token')->plainTextToken;
-
+        $user = Auth::user();
+        $token = $user->createToken('authToken')->plainTextToken;
         return response()->json([
-            'user'  => $user,
-            'token' => $token
+            'user' => $user,
+            'access_token' => $token
         ]);
     }
 
-    // Logout (Revoke Tokens)
     public function logout(Request $request)
     {
-        $request->user()->tokens()->delete();
-
-        return response()->json([
-            'message' => 'Logged out successfully'
-        ]);
+        $request->user()->currentAccessToken()->delete();
+        return response()->json(['message' => 'Successfully logged out']);
     }
 }

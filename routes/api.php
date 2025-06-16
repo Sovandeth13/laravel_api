@@ -1,68 +1,39 @@
 <?php
-
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrderController;
-use App\Http\Controllers\AdminOrderController;
-use App\Http\Controllers\AdminProductController;
-use App\Http\Controllers\AdminController;
-
-/*
-|--------------------------------------------------------------------------
-| Public Routes
-|--------------------------------------------------------------------------
-*/
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\DiscountController;
+use App\Http\Controllers\PayPalController;
+// Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::apiResource('categories', CategoryController::class);
+Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/{id}', [ProductController::class, 'show']);
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/discounts', [DiscountController::class, 'index']);
+Route::get('categories/{id}/products', [CategoryController::class, 'products']);
 
-/*
-|--------------------------------------------------------------------------
-| Protected Routes - Users
-|--------------------------------------------------------------------------
-*/
-Route::middleware('auth:sanctum')->group(function () {
+// Protected routes
+Route::middleware('auth:sanctum')->group(function() {
+    // Order routes
+    Route::post('/orders', [OrderController::class, 'store']);         // User place order
+    Route::get('/orders/my', [OrderController::class, 'myOrders']);    // User see own orders
+    Route::get('/orders/{id}', [OrderController::class, 'show']);      // User see one order
 
-    // Auth
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', function (Request $request) {
-    return $request->user();
+    // Cart routes (ADD THESE)
+    Route::get('/cart', [CartController::class, 'index']);             // Get user's cart
+    Route::post('/cart', [CartController::class, 'store']);            // Add to cart
+    Route::put('/cart/{id}', [CartController::class, 'update']);       // Update cart item
+    Route::delete('/cart/{id}', [CartController::class, 'destroy']);   // Remove cart item
+
+
+
 });
-
-    // Products (User side)
-    Route::apiResource('products', ProductController::class);
-
-    // Cart
-    Route::get('/cart', [CartController::class, 'index']);
-    Route::post('/cart', [CartController::class, 'store']);
-    Route::put('/cart/{cart}', [CartController::class, 'update']);
-    Route::delete('/cart/{cart}', [CartController::class, 'destroy']);
-
-    // Orders
-    Route::post('/orders', [OrderController::class, 'store']);
-    Route::get('/orders', [OrderController::class, 'index']);
+Route::post('/test-api', function() {
+    return response()->json(['message' => 'API is working!']);
 });
-
-/*
-|--------------------------------------------------------------------------
-| Protected Routes - Admin Only
-|--------------------------------------------------------------------------
-*/
-Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
-
-    // Admin dashboard user list
-    Route::get('/users', [AdminController::class, 'users']);
-
-    // Orders
-    Route::get('/orders', [AdminOrderController::class, 'index']);
-    Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
-    Route::put('/orders/{id}/status', [AdminOrderController::class, 'updateStatus']);
-    Route::delete('/orders/{id}', [AdminOrderController::class, 'destroy']);
-
-    // Products (Admin version, if separate logic needed)
-    Route::apiResource('/products', AdminProductController::class);
-});
+Route::post('/create-paypal-order', [PayPalController::class, 'createOrder']);
+    Route::post('/capture-paypal-order', [PayPalController::class, 'captureOrder']);

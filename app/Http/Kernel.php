@@ -7,45 +7,43 @@ use Illuminate\Foundation\Http\Kernel as HttpKernel;
 class Kernel extends HttpKernel
 {
     /**
-     * Global middleware: applied on every request.
+     * Global HTTP middleware stack.
      */
-        protected $middleware = [
-            \App\Http\Middleware\TrustProxies::class,
-            \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
-            \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
-            \App\Http\Middleware\TrimStrings::class,
-            \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
-            \Fruitcake\Cors\HandleCors::class, // ✅ Correct for Laravel 8 with fruitcake/laravel-cors
-        ];
-
-
-    /**
-     * Middleware groups.
-     */
-    protected $middlewareGroups = [
-        'web' => [
-            \App\Http\Middleware\EncryptCookies::class,
-            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-            \Illuminate\Session\Middleware\StartSession::class,
-            // \Illuminate\Session\Middleware\AuthenticateSession::class,
-            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-            \App\Http\Middleware\VerifyCsrfToken::class,
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
-        ],
-
-        'api' => [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-            'throttle:api',
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            'throttle:api',
-            'throttle:api',
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
-        ],
-
+    protected $middleware = [
+        \App\Http\Middleware\TrustProxies::class,
+        \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
+        \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+        \App\Http\Middleware\TrimStrings::class,
+        \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
+        \Fruitcake\Cors\HandleCors::class, // if using Fruitcake package for CORS
     ];
 
     /**
-     * Route middleware: used for specific routes.
+     * The application's route middleware groups.
+     */
+    protected $middlewareGroups = [
+    'web' => [
+       \Fruitcake\Cors\HandleCors::class,  // <<< ADD THIS LINE
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        // \Illuminate\Session\Middleware\AuthenticateSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class, // CSRF for web only!
+        \Illuminate\Routing\Middleware\SubstituteBindings::class,
+    ],
+
+    'api' => [
+        // REMOVE EnsureFrontendRequestsAreStateful for token auth!
+        'throttle:api',
+        \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        \Fruitcake\Cors\HandleCors::class,
+
+    ],
+];
+
+    /**
+     * The application's route middleware.
      */
     protected $routeMiddleware = [
         'auth' => \App\Http\Middleware\Authenticate::class,
@@ -57,8 +55,7 @@ class Kernel extends HttpKernel
         'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
-        'admin' => \App\Http\Middleware\AdminMiddleware::class,
+        'admin' => \App\Http\Middleware\AdminMiddleware::class, // your admin middleware
 
     ];
-
 }

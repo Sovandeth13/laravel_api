@@ -6,27 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 class AddCategoryIdToProductsTable extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * @return void
-     */
     public function up()
     {
         Schema::table('products', function (Blueprint $table) {
-        $table->foreignId('category_id')->nullable()->constrained()->onDelete('set null');
-    });
+            // Only add if not already present
+            if (!Schema::hasColumn('products', 'category_id')) {
+                $table->foreignId('category_id')->nullable()->constrained()->onDelete('set null');
+            }
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
     public function down()
     {
         Schema::table('products', function (Blueprint $table) {
-            //
+            if (Schema::hasColumn('products', 'category_id')) {
+                $table->dropForeign(['category_id']);
+                $table->dropColumn('category_id');
+            }
         });
     }
 }

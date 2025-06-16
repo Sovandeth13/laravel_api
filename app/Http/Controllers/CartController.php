@@ -1,77 +1,76 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use App\Models\Cart;
-use App\Models\Product;
+use Illuminate\Http\Request;
 
 class CartController extends Controller
 {
-    // View cart items for the authenticated user
-
-    /**
- * @return \Illuminate\Database\Eloquent\Collection|\App\Models\Cart[]
- */
-    public function index()
+    public function index(Request $request)
     {
-       $user = Auth::user();
-    $cartItems = $user->carts()->with('product')->get();
+          $cartItems = Cart::with('product')->where('user_id', $request->user()->id)->get();
 
-    return response()->json($cartItems);
+    $items = $cartItems->map(function ($item) {
+        return [
+            'id' => $item->id,
+            'quantity' => $item->quantity,
+            'product' => [
+                'id' => $item->product->id,
+                'name' => $item->product->name,
+                'image_url' => $item->product->image_url, // Make sure this is a full URL!
+                'price' => $item->product->price,
+                'description' => $item->product->description,
+            ],
+        ];
+    });
+
+    return response()->json(['items' => $items]);
     }
 
-    // Add item to cart
     public function store(Request $request)
-    {
-        $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'quantity' => 'integer|min:1'
+{
+    $request->validate([
+        'product_id' => 'required|exists:products,id',
+        'quantity' => 'required|integer|min:1',
+    ]);
+
+    $userId = $request->user()->id;
+
+    // Check if product is already in cart
+    $cartItem = Cart::where('user_id', $userId)
+                    ->where('product_id', $request->product_id)
+                    ->first();
+
+    if ($cartItem) {
+        // If exists, update quantity
+        $cartItem->quantity += $request->quantity;
+        $cartItem->save();
+    } else {
+        // If not, create new
+        $cartItem = Cart::create([
+            'user_id' => $userId,
+            'product_id' => $request->product_id,
+            'quantity' => $request->quantity,
         ]);
-
-        $cartItem = Cart::where('user_id', Auth::id())
-            ->where('product_id', $request->product_id)
-            ->first();
-
-        if ($cartItem) {
-            // Increment quantity
-            $cartItem->quantity += $request->quantity ?? 1;
-            $cartItem->save();
-        } else {
-            // New item in cart
-            $cartItem = Cart::create([
-                'user_id' => Auth::id(),
-                'product_id' => $request->product_id,
-                'quantity' => $request->quantity ?? 1
-            ]);
-        }
-
-        return response()->json($cartItem->load('product'), 201);
     }
 
-    // Update quantity of a specific cart item
-    public function update(Request $request, Cart $cart)
+    return response()->json($cartItem, 201);
+}
+
+
+    public function update(Request $request, $id)
     {
-        $this->authorize('update', $cart); // Optional, if using policies
+        $request->validate(['quantity' => 'required|integer|min:1']);
+        $cartItem = Cart::findOrFail($id);
+        $cartItem->quantity = $request->quantity;
+        $cartItem->save();
 
-        $request->validate([
-            'quantity' => 'required|integer|min:1'
-        ]);
-
-        $cart->update(['quantity' => $request->quantity]);
-
-        return response()->json($cart->load('product'));
+        return response()->json($cartItem);
     }
 
-    // Delete item from cart
-    public function destroy(Cart $cart)
+    public function destroy($id)
     {
-        $this->authorize('delete', $cart); // Optional, if using policies
-
-        $cart->delete();
-
-        return response()->json(['message' => 'Item removed from cart']);
+        Cart::destroy($id);
+        return response()->json(['message' => 'Cart item removed successfully']);
     }
 }
